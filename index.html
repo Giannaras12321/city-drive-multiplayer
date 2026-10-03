@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="el"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>City Drive — Multiplayer V4</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;font-family:Arial;background:#79a85b;color:#fff}
+canvas{display:block;width:100%;height:100%}.hud{position:fixed;top:12px;left:12px;display:flex;gap:6px;z-index:5;flex-wrap:wrap}
+.p{background:#111c;border:1px solid #fff2;border-radius:8px;padding:7px 10px;font-size:12px}
+#mapBtn{position:fixed;right:12px;top:12px;z-index:8;background:#142536ee;color:#fff;border:1px solid #fff3;border-radius:8px;padding:9px 13px}
+#mini{position:fixed;right:12px;bottom:12px;width:215px;height:155px;background:#111d;border:2px solid #fff5;border-radius:10px;z-index:8}
+#speedo{position:fixed;right:235px;bottom:12px;width:128px;height:128px;background:#111d;border:3px solid #d8d8d8;border-radius:50%;z-index:8;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 0 0 5px #1118,0 8px 25px #0006}#speedo .unit{font-size:11px;opacity:.7}#speedo .needle{font-size:12px;opacity:.65}#vehicleStatus{font-size:10px;min-height:12px;margin-top:2px}
+#missionMarker{position:fixed;left:50%;top:86px;transform:translateX(-50%);z-index:9;background:#ffd84a;color:#171717;border:3px solid #111;border-radius:50%;width:42px;height:42px;display:none;align-items:center;justify-content:center;font-size:24px;box-shadow:0 3px 14px #0008}#missionBox{position:fixed;right:240px;top:60px;background:#111d;padding:9px 12px;border-radius:9px;z-index:8;max-width:280px;font-size:12px}
+#help{position:fixed;left:12px;bottom:12px;background:#111c;padding:7px 10px;border-radius:8px;font-size:11px;z-index:8}
+#toast{position:fixed;left:50%;bottom:48px;transform:translateX(-50%);background:#111e;padding:10px 16px;border-radius:9px;opacity:0;z-index:50;transition:.2s}
+.panel{display:none;position:fixed;inset:7%;z-index:30;background:#101820f8;border:1px solid #fff2;border-radius:14px;padding:15px;overflow:auto;box-shadow:0 20px 60px #0009}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:7px}button{background:#27394a;color:#fff;border:1px solid #fff2;border-radius:7px;padding:8px;cursor:pointer}button:hover{background:#36556d}.close{float:right}.small{font-size:11px;opacity:.7}
+#intro{position:fixed;inset:0;z-index:100;background:#081018;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px}#intro h1{font-size:46px;margin:0}.blue{color:#65c8ff}
+#lobby{position:fixed;inset:0;z-index:120;background:#081018;display:flex;align-items:center;justify-content:center}.lobbyCard{width:min(560px,92vw);background:#101b26;border:1px solid #ffffff22;border-radius:16px;padding:22px;box-shadow:0 20px 60px #0009}.lobbyCard h1{margin:0 0 6px;font-size:34px}.lobbyGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.lobbyCard input{width:100%;padding:11px;border-radius:8px;border:1px solid #ffffff22;background:#09121a;color:#fff}.code{font-size:28px;font-weight:800;letter-spacing:4px;text-align:center;padding:12px;background:#09121a;border-radius:10px;margin:10px 0}.players{min-height:50px;padding:10px;background:#09121a;border-radius:10px;font-size:12px}.mpnote{font-size:11px;opacity:.7;line-height:1.5}
+
+/* Multiplayer V3: isolated lobby/modal UI */
+#lobby{position:fixed;inset:0;z-index:9999;background:radial-gradient(circle at 50% 35%,#17314a 0%,#081019 58%,#04080d 100%);display:flex;align-items:center;justify-content:center}
+.lobbyCard{width:min(650px,94vw);background:#101c28;border:1px solid #ffffff2e;border-radius:22px;padding:32px;box-shadow:0 28px 90px #000c;text-align:center}
+.lobbyCard h1{margin:0;font-size:42px}.lobbySub{margin:10px 0 24px;color:#c8d5df}
+.lobbyHome{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.lobbyHome button,.lobbyAction{border:1px solid #ffffff25;background:#29445a;color:#fff;border-radius:13px;min-height:72px;padding:12px 16px;font-size:19px;font-weight:800;cursor:pointer}
+.lobbyHome button:hover,.lobbyAction:hover{background:#345a76;transform:translateY(-1px)}
+.mpModal{display:none;position:fixed;inset:0;align-items:center;justify-content:center;background:#0009;padding:20px}
+.mpModal.open{display:flex}
+.mpModalBox{position:relative;width:min(500px,94vw);background:#111f2c;border:1px solid #ffffff25;border-radius:18px;padding:28px;text-align:left;box-shadow:0 25px 80px #000c}
+.mpModalBox h2{text-align:center;margin:0 0 20px}
+.mpModalBox label{display:block;margin:11px 0 6px;color:#c8d5df;font-size:13px}
+.mpModalBox input{width:100%;padding:14px;border-radius:10px;border:1px solid #ffffff25;background:#07111a;color:#fff;font-size:16px;outline:none}
+.mpModalBox input:focus{border-color:#69c8ff}
+.mpModalBox .lobbyAction{width:100%;margin-top:16px;min-height:58px}
+.mpModalBox .secondary{background:#182b3b}
+.mpClose{position:absolute;right:12px;top:12px;border:0;background:#ffffff12;color:#fff;border-radius:8px;padding:7px 10px;cursor:pointer;font-size:16px}
+.lobbyStatus{min-height:24px;margin-top:12px;text-align:center;color:#aee0ff;font-size:13px}
+.partyInfo{display:none;margin-top:14px;padding:13px;border-radius:11px;background:#07111a;border:1px solid #ffffff15;text-align:center}
+.partyNameBig{font-size:13px;color:#a9bdca}.partyCodeBig{font-size:29px;font-weight:900;letter-spacing:4px;margin:5px 0 9px}
+@media(max-width:650px){.lobbyHome{grid-template-columns:1fr}.lobbyCard{padding:22px}.lobbyCard h1{font-size:32px}}
+.mpModal{z-index:10001}.mpModalBox{z-index:10002}.lobbyCard button,.mpModalBox button{pointer-events:auto}.lobbyStatus{word-break:break-word}
+
+/* Multiplayer V2 lobby */
+#lobby{position:fixed;inset:0;z-index:120;background:radial-gradient(circle at 50% 35%,#14273a 0%,#071019 58%,#050a0f 100%);display:flex;align-items:center;justify-content:center}
+.lobbyCard{width:min(620px,94vw);background:#101b26;border:1px solid #ffffff25;border-radius:20px;padding:30px;box-shadow:0 25px 80px #000b;text-align:center}
+.lobbyCard h1{margin:0;font-size:42px;letter-spacing:.5px}.lobbySub{margin:10px 0 24px;color:#c7d5df;font-size:15px}
+.lobbyHome,.lobbyForm{display:flex;flex-direction:column;gap:14px}.lobbyHome button,.lobbyAction{width:100%;min-height:64px;font-size:18px;font-weight:700;border-radius:12px}
+.lobbyForm{display:none;text-align:left}.lobbyForm h2{margin:0;text-align:center;font-size:27px}.lobbyForm label{font-size:13px;color:#c7d5df}
+.lobbyForm input{width:100%;padding:15px 14px;border-radius:10px;border:1px solid #ffffff24;background:#07111a;color:#fff;font-size:16px;outline:none}
+.lobbyForm input:focus{border-color:#65c8ff88;box-shadow:0 0 0 3px #65c8ff18}
+.lobbyActions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}.lobbyActions button{min-height:54px;font-size:16px;font-weight:700}
+.lobbyStatus{min-height:24px;text-align:center;color:#9edcff;font-size:13px}.partyInfo{display:none;background:#07111a;border:1px solid #ffffff15;border-radius:11px;padding:12px;text-align:center}
+.partyCodeBig{font-size:26px;font-weight:800;letter-spacing:4px;margin:5px 0;color:#fff}.partyNameBig{font-size:13px;color:#b9cad6}
+@media(max-width:600px){.lobbyCard{padding:20px}.lobbyCard h1{font-size:32px}.lobbyActions{grid-template-columns:1fr}.lobbyHome button{min-height:58px}}
+</style></head><body>
+
+<div id="lobby">
+  <div class="lobbyCard">
+    <h1>🌐 CITY DRIVE <span class="blue">MULTIPLAYER</span></h1>
+    <div class="lobbySub">Φτιάξε party ή μπες με τον κωδικό του φίλου σου.</div>
+    <div id="mpHome" class="lobbyHome">
+      <button type="button" id="mpCreateBtn">➕ CREATE PARTY</button>
+      <button type="button" id="mpJoinBtn">🔗 JOIN PARTY</button>
+    </div>
+  </div>
+  <div id="createModal" class="mpModal" aria-hidden="true">
+    <div class="mpModalBox">
+      <button type="button" class="mpClose" id="createClose">✕</button>
+      <h2>➕ CREATE PARTY</h2>
+      <label>Username</label>
+      <input id="createUser" maxlength="20" placeholder="π.χ. Giannhs" autocomplete="off">
+      <label>Party Name</label>
+      <input id="createPartyName" maxlength="30" placeholder="π.χ. City Crew" autocomplete="off">
+      <label>Party Code</label>
+      <input id="createPartyCode" maxlength="20" placeholder="π.χ. 4827ABC" autocomplete="off">
+      <button type="button" class="lobbyAction" id="createConfirm">CREATE PARTY</button>
+      <div id="createStatus" class="lobbyStatus"></div>
+    </div>
+  </div>
+  <div id="joinModal" class="mpModal" aria-hidden="true">
+    <div class="mpModalBox">
+      <button type="button" class="mpClose" id="joinClose">✕</button>
+      <h2>🔗 JOIN PARTY</h2>
+      <label>Username</label>
+      <input id="joinUser" maxlength="20" placeholder="π.χ. Nick" autocomplete="off">
+      <label>Party Code</label>
+      <input id="joinCode" maxlength="20" placeholder="Βάλε τον κωδικό του party" autocomplete="off">
+      <button type="button" class="lobbyAction" id="joinConfirm">JOIN PARTY</button>
+      <div id="joinStatus" class="lobbyStatus"></div>
+    </div>
+  </div>
+</div>
+<script>
+// Lobby click handlers are registered before the game code starts.
+(()=>{
+  const open=id=>{const e=document.getElementById(id);if(e){e.classList.add('open');e.setAttribute('aria-hidden','false');}};
+  const close=id=>{const e=document.getElementById(id);if(e){e.classList.remove('open');e.setAttribute('aria-hidden','true');}};
+  document.getElementById('mpCreateBtn').addEventListener('click',()=>open('createModal'));
+  document.getElementById('mpJoinBtn').addEventListener('click',()=>open('joinModal'));
+  document.getElementById('createClose').addEventListener('click',()=>close('createModal'));
+  document.getElementById('joinClose').addEventListener('click',()=>close('joinModal'));
+})();
+</script>
+<canvas id="game"></canvas>
+<div class="hud"><div class="p">💰 $<span id="money">1500</span></div><div class="p">❤️ <span id="hp">100</span></div><div class="p">🍗 <span id="hunger">100</span></div><div class="p">⭐ <span id="stars">0</span></div><div class="p">🚗 <span id="carName">On Foot</span></div></div>
+<button id="mapBtn" onclick="openMap()">🗺️ MAP</button><canvas id="mini"></canvas>
+<div id="speedo"><div class="needle">🏎️</div><b><span id="speed">0</span></b><div class="unit">km/h</div><span id="gear">N</span><div id="vehicleStatus"></div></div>
+<div id="missionBox">🎯 <b id="missionTitle">Free Roam</b><br><span id="missionText">Πάτα J για αποστολές.</span></div><div id="missionMarker">➤</div>
+<div id="help">WASD/βέλη: οδήγηση • G: Garage/Summon • I: Inventory • J: Missions • M: Map • P: Admin • O: Settings</div>
+<div id="toast"></div>
+
+<div id="garage" class="panel"><button class="close" onclick="garage.style.display='none'">✕</button><h2>🚘 GARAGE — SUMMON</h2><p class="small">Το E δεν παίρνει πλέον αυτοκίνητα. Από εδώ κάνεις summon μόνο όσα έχεις αγοράσει.</p><div id="cars" class="grid"></div></div>
+<div id="missions" class="panel"><button class="close" onclick="missions.style.display='none'">✕</button><h2>🎯 MISSIONS</h2><div id="missionList"></div></div>
+<div id="inventory" class="panel"><button class="close" onclick="inventory.style.display='none'">✕</button><h2>🎒 INVENTORY</h2><p>❤️ <span id="ihp">100</span> · 🍗 <span id="ihunger">100</span></p><div class="grid">
+<button onclick="buyFood('Μήλο',20,10)">🍎 Μήλο<br>$20 · +10</button><button onclick="buyFood('Μπανάνα',25,13)">🍌 Μπανάνα<br>$25 · +13</button>
+<button onclick="buyFood('Pizza',80,28)">🍕 Pizza<br>$80 · +28</button><button onclick="buyFood('Burger',100,35)">🍔 Burger<br>$100 · +35</button>
+<button onclick="buyFood('Σουβλάκι',120,50)">🥙 Σουβλάκι<br>$120 · +50</button><button onclick="buyMedkit()">🩹 Medkit<br>$200 · +40 HP</button></div></div>
+<div id="settings" class="panel"><button class="close" onclick="settings.style.display='none'">✕</button><h2>⚙️ SETTINGS</h2><div class="grid">
+<button onclick="zoom=Math.max(.8,zoom-.1)">🔍 Zoom −</button><button onclick="zoom=Math.min(1.8,zoom+.1)">🔎 Zoom +</button><button onclick="zoom=1.2">↩ Reset Zoom</button>
+<button onclick="setTime('day')">☀️ Day</button><button onclick="setTime('evening')">🌆 Evening</button><button onclick="setTime('midnight')">🌙 Midnight</button><button onclick="leftFlash=!leftFlash">◀ Flash L</button><button onclick="rightFlash=!rightFlash">Flash R ▶</button><button onclick="alarmOn=!alarmOn;leftFlash=alarmOn;rightFlash=alarmOn">🚨 Alarm</button></div></div>
+<div id="map" class="panel"><button class="close" onclick="map.style.display='none'">✕</button><h2>🗺️ CITY MAP</h2><canvas id="bigmap" width="1000" height="600" style="width:100%;border-radius:9px"></canvas></div>
+<div id="admin" class="panel"><button class="close" onclick="admin.style.display='none'">✕</button><h2>🛠️ ADMIN PANEL V1</h2><p class="small">P → 3756 → Giannhs</p><div class="grid">
+<button onclick="adminMoneyAmount()">💵 Set Money Amount</button>
+<button onclick="adminSpeed()">🏎️ Set Max Speed km/h</button>
+<button onclick="adminDistance()">📏 Set Trip Distance km</button>
+<button onclick="resetAdminValues()">♻️ Reset Admin Values</button>
+<button onclick="wanted=0;sync()">🟢 Clear Wanted</button><button onclick="hp=100;sync()">❤️ Full HP</button><button onclick="hunger=100;sync()">🍗 Full Hunger</button>
+<button onclick="player.noclip=!player.noclip">👻 Noclip</button><button onclick="player.boost=!player.boost">⚡ Speed Boost</button>
+<button onclick="setTime('day')">☀️ Day</button><button onclick="setTime('evening')">🌆 Evening</button><button onclick="setTime('midnight')">🌙 Midnight</button>
+<button onclick="player.x=WORLD.w/2;player.y=WORLD.h/2">📍 Center</button><button onclick="resetWorld()">♻️ Reset World</button>
+</div></div>
+<div id="intro" style="display:none"></div>
+
+<script>
+const game=document.getElementById('game'),g=game.getContext('2d'),mini=document.getElementById('mini'),mg=mini.getContext('2d');
+const WORLD={w:8400,h:6200};let started=false,zoom=1.2,cam={x:0,y:0},money=1500,hp=100,hunger=100,wanted=0,stars=0,timeMode='day',freezeNPC=false,trafficFrozen=false;
+let player={x:3400,y:2300,r:15,speed:4.2,boost:false,noclip:false,inCar:null,angle:0},owned=[0],police=[];let adminSpeedOverride=null,freezePlayer=false;let remotePlayers={};
+const roads=[
+{x:0,y:850,w:8400,h:240},{x:0,y:2900,w:8400,h:240},{x:0,y:4950,w:8400,h:240},
+{x:650,y:0,w:240,h:6200},{x:2700,y:0,w:240,h:6200},{x:4750,y:0,w:240,h:6200},{x:6800,y:0,w:240,h:6200},
+{x:890,y:1650,w:1810,h:150},{x:2940,y:1650,w:1810,h:150},{x:4990,y:1650,w:1810,h:150},
+{x:890,y:3700,w:1810,h:150},{x:2940,y:3700,w:1810,h:150},{x:4990,y:3700,w:1810,h:150}];
+const parks=[
+{x:950,y:120,w:1550,h:620,name:'Northwest Park'},{x:3000,y:120,w:1550,h:620,name:'North Park'},{x:5050,y:120,w:1550,h:620,name:'Northeast Park'},
+{x:950,y:5350,w:1550,h:650,name:'Southwest Park'},{x:3000,y:5350,w:1550,h:650,name:'South Park'},{x:5050,y:5350,w:1550,h:650,name:'Southeast Park'}];
+// Buildings are kept away from parks and road surfaces so mission routes stay clear.
+const buildings=[
+{x:80,y:80,w:450,h:430,c:'#c59a78',n:'Villa',roof:'#9c6f57'},{x:7600,y:80,w:520,h:450,c:'#819ead',n:'Clinic',roof:'#5d7780'},
+{x:980,y:1170,w:520,h:300,c:'#9eabb5',n:'Market',roof:'#687883'},{x:1580,y:1170,w:430,h:300,c:'#d08b73',n:'Cafe',roof:'#9f5f50'},
+{x:2130,y:1170,w:420,h:300,c:'#d7b05d',n:'Store',roof:'#a47c39'},{x:3100,y:1170,w:520,h:300,c:'#b5a072',n:'Restaurant',roof:'#806f4b'},
+{x:3700,y:1170,w:430,h:300,c:'#8298bd',n:'Office',roof:'#5c7095'},{x:5120,y:1170,w:500,h:300,c:'#c89462',n:'House',roof:'#986c43'},
+{x:5700,y:1170,w:420,h:300,c:'#8aa99f',n:'Shop',roof:'#5f7e75'},{x:6200,y:1170,w:500,h:300,c:'#a68db8',n:'Apartment',roof:'#755f86'},
+{x:980,y:3260,w:520,h:300,c:'#8aa99f',n:'Store',roof:'#5f7e75'},{x:1580,y:3260,w:430,h:300,c:'#c19f7a',n:'Cafe',roof:'#916f51'},
+{x:3100,y:3260,w:520,h:300,c:'#a68db8',n:'Apartment',roof:'#755f86'},{x:3700,y:3260,w:430,h:300,c:'#d1ac67',n:'Market',roof:'#98763e'},
+{x:5120,y:3260,w:500,h:300,c:'#8c9fc0',n:'Office',roof:'#627394'},{x:5700,y:3260,w:420,h:300,c:'#ba8278',n:'House',roof:'#8b5d55'},
+{x:6200,y:3260,w:500,h:300,c:'#cf9a6e',n:'Cafe',roof:'#986746'},{x:80,y:4550,w:450,h:300,c:'#8da89a',n:'House',roof:'#607e72'},
+{x:7600,y:4550,w:520,h:300,c:'#819ead',n:'House',roof:'#5d7780'}];
+const cars=[['Starter',0,18,'#4aa5df',1],['Hatch',900,27,'#e85d5d',.95],['Sedan',1600,34,'#e4c44f',1.05],['SUV',2500,31,'#777',1.15],['Taxi',3000,38,'#f0d64f',.9],['Sport',4200,58,'#d84e72',.9],['Muscle',5500,52,'#965fd0',1.1],['Super',8000,72,'#4fd19a',.9],['Hyper',10000,95,'#ef8450',.82],['Luxury',14000,65,'#d8d8df',1.05],['Police',20000,82,'#222',1]];
+let traffic=[],npcs=[];
+const roadH=[970,3020,5070],roadV=[770,2820,4870,6920];
+for(let i=0;i<18;i++){let y=roadH[i%3]+(i%2?48:-48),dir=i%2?1:-1;traffic.push({axis:'x',x:(i*520)%WORLD.w,y,v:dir*(1.5+(i%4)*.3),col:cars[(i+1)%cars.length][3],angle:dir>0?0:Math.PI});}
+for(let i=0;i<12;i++){let x=roadV[i%4]+(i%2?48:-48),dir=i%2?1:-1;traffic.push({axis:'y',x,y:(i*470)%WORLD.h,v:dir*(1.3+(i%3)*.3),col:cars[(i+3)%cars.length][3],angle:dir>0?Math.PI/2:-Math.PI/2});}
+function makeNPCs(){npcs=[];const spots=[];
+for(let x=980;x<7600;x+=520){spots.push([x,1120,1,0],[x,1520,-1,0],[x,3180,1,0],[x,3640,-1,0]);}
+for(let y=1200;y<5000;y+=520){spots.push([940,y,0,1],[1540,y,0,-1],[2890,y,0,1],[4910,y,0,-1],[6750,y,0,1]);}
+spots.forEach(s=>npcs.push({x:s[0],y:s[1],v:(s[2]||s[3])*.45,axis:s[2]?'x':'y',min:s[2]?s[0]-170:s[1]-160,max:s[2]?s[0]+170:s[1]+160}));}makeNPCs();
+
+const missionData=[
+['Market Courier','Πάρε το δέμα από το MARKET και παράδωσέ το στο CAFE.',650,[1240,1520],[1800,1520]],
+['Food Delivery','Πάρε παραγγελία από το RESTAURANT και πήγαινέ την στο HOUSE.',850,[3360,1520],[5360,1520]],
+['Garage Parts','Πάρε ανταλλακτικό από το GARAGE και πήγαινέ το στο CLINIC.',1200,[7060,1120],[7860,600]],
+['Park Run','Πέρασε από το NORTH PARK και μετά στο OFFICE.',1500,[3770,780],[3920,1520]],
+['Night Courier','Κάνε παράδοση στο CAFE και μετά στο APARTMENT.',1900,[1800,1520],[6450,1520]],
+['Long Haul','Μετέφερε πακέτο από το NORTH PARK στο SOUTH PARK.',2500,[3770,780],[3770,5450]],
+['City Taxi','Πάρε επιβάτη από το SHOP και άφησέ τον στο CLINIC.',950,[5910,1520],[7860,600]],
+['Market to South','Πάρε προϊόντα από το MARKET και παράδωσέ τα στο SOUTH PARK.',1750,[1240,1520],[3770,5450]],
+['Office Express','Πάρε έγγραφα από το OFFICE και παράδωσέ τα στο APARTMENT.',1350,[3920,1520],[6450,1520]],
+['Garage Night','Πάρε το ανταλλακτικό και πήγαινέ το στο SOUTHWEST PARK.',2200,[7060,1120],[1700,5450]],
+['Cross City Delivery','Κάνε στάση στο STORE και μετά στο CAFE.',3000,[2340,1520],[1800,3615]],
+['Clinic Run','Πήγαινε στο CLINIC και μετά στο MARKET.',1100,[7860,600],[1240,1520]],
+['South Route','Πάρε πακέτο από το SOUTH MARKET και παράδωσέ το στο SHOP.',1600,[3920,3615],[5910,3615]],
+['City Loop','Πέρασε από OFFICE → SHOP → CAFE.',2800,[3920,1520],[5910,1520]],
+['Park Courier','Παράδοση από NORTH PARK στη SOUTHWEST PARK.',2300,[3770,780],[1700,5450]],
+['Fast Delivery','Πάρε φαγητό από CAFE και πήγαινέ το στο CLINIC.',1750,[1800,1520],[7860,600]]];
+let mi=0,stage=0,active=false;
+function resize(){game.width=innerWidth*devicePixelRatio;game.height=innerHeight*devicePixelRatio;g.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);mini.width=215*devicePixelRatio;mini.height=155*devicePixelRatio;mg.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0)}resize();addEventListener('resize',resize);
+let keys={};addEventListener('keydown',e=>{let k=e.key.toLowerCase();keys[k]=1;if(k==='g')garage.style.display='block';if(k==='i')inventory.style.display='block';if(k==='j')missions.style.display='block';if(k==='m')openMap();if(k==='p')openAdmin();if(k==='o')settings.style.display='block';
+if(player.inCar&&k==='z'){leftFlash=!leftFlash;if(leftFlash)rightFlash=false;toast(leftFlash?'◀ Αριστερό φλας ON':'Αριστερό φλας OFF')}
+if(player.inCar&&k==='c'){rightFlash=!rightFlash;if(rightFlash)leftFlash=false;toast(rightFlash?'Δεξί φλας ▶ ON':'Δεξί φλας OFF')}
+if(player.inCar&&k==='x'){alarmOn=!alarmOn;if(alarmOn){leftFlash=true;rightFlash=true}else{leftFlash=false;rightFlash=false}toast(alarmOn?'🚨 Αλάρμ ON':'Αλάρμ OFF')}});addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
+function pointOnRoad(px,py){return roads.some(r=>px>=r.x&&px<=r.x+r.w&&py>=r.y&&py<=r.y+r.h)}
+function pointInBuilding(px,py,pad=0){return buildings.some(b=>px>b.x-pad&&px<b.x+b.w+pad&&py>b.y-pad&&py<b.y+b.h+pad)}
+function blocked(px,py){if(player.noclip)return false;for(const b of buildings)if(px>b.x-18&&px<b.x+b.w+18&&py>b.y-18&&py<b.y+b.h+18)return true;return px<15||py<15||px>WORLD.w-15||py>WORLD.h-15}
+const lamps=[];
+(function makeLamps(){const add=(x,y)=>{if(pointOnRoad(x,y)||pointInBuilding(x,y,30)||parks.some(p=>x>p.x&&x<p.x+p.w&&y>p.y&&y<p.y+p.h))return;if(lamps.some(l=>Math.hypot(l.x-x,l.y-y)<220))return;lamps.push({x,y});};
+for(const r of roads.filter(r=>r.w>r.h))for(let x=r.x+120;x<r.x+r.w-100;x+=360){add(x,r.y-58);add(x,r.y+r.h+58)}
+for(const r of roads.filter(r=>r.h>r.w))for(let y=r.y+120;y<r.y+r.h-100;y+=360){add(r.x-58,y);add(r.x+r.w+58,y)}})();
+function move(dx,dy){let nx=player.x+dx,ny=player.y+dy;if(!blocked(nx,player.y))player.x=nx;if(!blocked(player.x,ny))player.y=ny}
+function summon(i){if(!owned.includes(i))return toast('Δεν έχεις αυτό το αμάξι');let a=cars[i];player.inCar={type:i,v:0,angle:player.angle,col:a[3],width:64*a[4],height:32*a[4]};player.speed=a[2]/4.5;player.x=Math.min(WORLD.w-100,player.x+75);garage.style.display='none';toast('🚗 Summoned '+a[0]);sync()}
+function buyCar(i){if(owned.includes(i))return summon(i);if(money<cars[i][1])return toast('Δεν έχεις αρκετά χρήματα');money-=cars[i][1];owned.push(i);toast('Αγόρασες '+cars[i][0]);sync()}
+function startMission(i){mi=i;stage=0;active=true;missions.style.display='none';updateMissionUI();toast('Αποστολή ξεκίνησε')}
+function updateMission(){if(!active)return;let m=missionData[mi],t=stage?m[4]:m[3];if(Math.hypot(player.x-t[0],player.y-t[1])<100){if(!stage){stage=1;toast('📦 Παρέλαβες! Τώρα πήγαινε στον προορισμό.')}else{money+=m[2];active=false;toast('✅ Ολοκληρώθηκε +$'+m[2]);sync()}updateMissionUI()}}
+function updateMissionUI(){let t=missionData[mi];missionTitle.textContent=active?t[0]+' • $'+t[2]:'Free Roam';missionText.textContent=active?(stage?'📦 Παράδοση στον προορισμό. ':'📍 Πήγαινε για παραλαβή. ')+t[1]:'Πάτα J για αποστολές.';updateMarker()}
+function updateMarker(){let el=document.getElementById('missionMarker');if(!active){el.style.display='none';return}let t=missionData[mi],p=stage?t[4]:t[3],dx=p[0]-player.x,dy=p[1]-player.y,ang=Math.atan2(dy,dx);el.style.display='flex';el.style.transform='translateX(-50%) rotate('+ang+'rad)';el.textContent='➤'}
+
+function update(){
+if(!started)return;
+if(freezePlayer){updatePolice();updateMission();updateMarker();cam.x=Math.max(0,Math.min(WORLD.w-innerWidth/zoom,player.x-innerWidth/(2*zoom)));cam.y=Math.max(0,Math.min(WORLD.h-innerHeight/zoom,player.y-innerHeight/(2*zoom)));sync();return}
+let throttle=(keys.w||keys.arrowup?1:0)-(keys.s||keys.arrowdown?1:0),steer=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0);
+if(player.inCar){tripDistance += Math.abs(player.inCar.v)*0.00015;let max=(adminSpeedOverride??cars[player.inCar.type][2])/4.5;if(throttle)player.inCar.v+=throttle*.10;else player.inCar.v*=.985;player.inCar.v=Math.max(-max*.45,Math.min(max,player.inCar.v));if(Math.abs(player.inCar.v)>.03)player.angle+=steer*.035*(player.inCar.v>0?1:-1);let boost=player.boost?1.35:1;move(Math.cos(player.angle)*player.inCar.v*boost,Math.sin(player.angle)*player.inCar.v*boost)}else{let dx=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),dy=(keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0);if(dx||dy){let l=Math.hypot(dx,dy);move(dx/l*(player.boost?8:4.3),dy/l*(player.boost?8:4.3));player.angle=Math.atan2(dy,dx)}}
+if(!freezeNPC)npcs.forEach(n=>{if(n.axis==='x'){n.x+=n.v;if(n.x<n.min||n.x>n.max)n.v*=-1}else{n.y+=n.v;if(n.y<n.min||n.y>n.max)n.v*=-1}});
+if(!trafficFrozen)traffic.forEach(t=>{
+  if(t.axis==='x'){t.x+=t.v;if(t.x<-80)t.x=WORLD.w+80;if(t.x>WORLD.w+80)t.x=-80;t.angle=t.v>0?0:Math.PI}
+  else{t.y+=t.v;if(t.y<-80)t.y=WORLD.h+80;if(t.y>WORLD.h+80)t.y=-80;t.angle=t.v>0?Math.PI/2:-Math.PI/2}
+});
+if(hunger>0)hunger-=.003;else{hp-=.03;if(hp<=0)respawn()}
+updatePolice();updateMission();updateMarker();cam.x=Math.max(0,Math.min(WORLD.w-innerWidth/zoom,player.x-innerWidth/(2*zoom)));cam.y=Math.max(0,Math.min(WORLD.h-innerHeight/zoom,player.y-innerHeight/(2*zoom)));sync()
+}
+function updatePolice(){if(wanted>=2&&police.length<Math.min(3,wanted-1))police.push({x:player.x-300,y:player.y+250,v:0,angle:0});police.forEach(p=>{let a=Math.atan2(player.y-p.y,player.x-p.x),d=Math.hypot(player.x-p.x,player.y-p.y);p.angle=a;p.v=Math.min(3.4,p.v+.035);p.x+=Math.cos(a)*p.v;p.y+=Math.sin(a)*p.v;if(d>2500){p.x=player.x+500;p.y=player.y+400}});if(wanted===0)police=[]}
+let leftFlash=false,rightFlash=false,alarmFlash=false,alarmOn=false;
+function carDraw(c,x,y,a,opts={}){
+g.save();g.translate(x,y);g.rotate(a);g.fillStyle=c.col;g.fillRect(-c.width/2,-c.height/2,c.width,c.height);
+g.fillStyle='#bde8f5';g.fillRect(-c.width*.22,-c.height*.37,c.width*.44,c.height*.74);
+g.fillStyle='#171717';g.fillRect(-c.width*.37,-c.height*.55,c.width*.18,c.height*.18);g.fillRect(c.width*.19,-c.height*.55,c.width*.18,c.height*.18);g.fillRect(-c.width*.37,c.height*.37,c.width*.18,c.height*.18);g.fillRect(c.width*.19,c.height*.37,c.width*.18,c.height*.18);
+const blink=Date.now()%700<350;
+if((leftFlash||alarmOn)&&blink){g.fillStyle='#ffb52e';g.fillRect(c.width*.27,-c.height*.52,10,7)}
+if((rightFlash||alarmOn)&&blink){g.fillStyle='#ffb52e';g.fillRect(c.width*.27,c.height*.32,10,7)}
+if(timeMode==='midnight'&&opts.player){g.save();g.globalAlpha=.18;g.fillStyle='#fff3a6';g.beginPath();g.moveTo(c.width*.48,-c.height*.20);g.lineTo(c.width*1.55,-c.height*.72);g.lineTo(c.width*1.55,c.height*.72);g.lineTo(c.width*.48,c.height*.20);g.closePath();g.fill();g.globalAlpha=.11;g.beginPath();g.arc(c.width*1.15,0,c.width*.78,0,Math.PI*2);g.fill();g.restore();g.fillStyle='#fffbe0';g.fillRect(c.width*.43,-c.height*.34,7,8);g.fillRect(c.width*.43,c.height*.08,7,8)}
+g.restore();}
+function draw(){
+g.clearRect(0,0,innerWidth,innerHeight);g.save();g.scale(zoom,zoom);g.translate(-cam.x,-cam.y);g.fillStyle=timeMode==='midnight'?'#16243b':timeMode==='evening'?'#b97b50':'#79a85b';g.fillRect(0,0,WORLD.w,WORLD.h);
+g.fillStyle=timeMode==='midnight'?'#363a47':'#565656';roads.forEach(r=>g.fillRect(r.x,r.y,r.w,r.h));g.strokeStyle='#ded27b';g.setLineDash([28,25]);g.lineWidth=3;roads.forEach(r=>{g.beginPath();if(r.w>r.h){g.moveTo(r.x,r.y+r.h/2);g.lineTo(r.x+r.w,r.y+r.h/2)}else{g.moveTo(r.x+r.w/2,r.y);g.lineTo(r.x+r.w/2,r.y+r.h)}g.stroke()});g.setLineDash([]);
+parks.forEach(p=>{g.fillStyle='#43874a';g.fillRect(p.x,p.y,p.w,p.h);g.strokeStyle='#6db06a';g.lineWidth=5;g.strokeRect(p.x+5,p.y+5,p.w-10,p.h-10);for(let i=0;i<12;i++){let tx=p.x+35+(i*83)%(p.w-50),ty=p.y+45+(i*57)%(p.h-60);g.fillStyle='#69ad62';g.beginPath();g.arc(tx,ty,14,0,7);g.fill();g.fillStyle='#765b3e';g.fillRect(tx-2,ty+8,4,13)}})
+buildings.forEach(b=>{
+  g.save();g.shadowColor='#0005';g.shadowBlur=10;g.shadowOffsetY=6;g.fillStyle=b.c;g.fillRect(b.x,b.y,b.w,b.h);g.restore();
+  g.fillStyle=b.roof||'#777';g.fillRect(b.x,b.y,b.w,18);
+  g.fillStyle='#f0d7b5';g.fillRect(b.x+10,b.y+25,b.w-20,4);
+  const cols=Math.max(2,Math.floor((b.w-45)/55)), rows=Math.max(1,Math.floor((b.h-100)/65));
+  for(let ry=0;ry<rows;ry++)for(let cx=0;cx<cols;cx++){let wx=b.x+25+cx*((b.w-55)/(cols-1||1)),wy=b.y+55+ry*58;g.fillStyle=timeMode==='midnight'&&((cx+ry)%3===0)?'#ffe8a0':'#bfe6f1';g.fillRect(wx-10,wy-8,20,18);g.strokeStyle='#6f8991';g.strokeRect(wx-10,wy-8,20,18)}
+  g.fillStyle='#684f3c';g.fillRect(b.x+b.w/2-12,b.y+b.h-38,24,38);
+  g.fillStyle='#333';g.font='13px Arial';g.fillText(b.n,b.x+14,b.y+14);
+});
+lamps.forEach(l=>{g.strokeStyle='#252525';g.lineWidth=4;g.beginPath();g.moveTo(l.x,l.y);g.lineTo(l.x,l.y-48);g.stroke();g.fillStyle='#ffe99a';g.beginPath();g.arc(l.x,l.y-53,8,0,7);g.fill();if(timeMode==='midnight'){g.save();g.globalAlpha=.10;g.fillStyle='#fff0a0';g.beginPath();g.arc(l.x,l.y-53,42,0,7);g.fill();g.restore()}});
+traffic.forEach(t=>carDraw({col:t.col,width:60,height:30},t.x,t.y,t.angle));
+npcs.forEach(n=>{g.fillStyle='#eac1a3';g.beginPath();g.arc(n.x,n.y-12,9,0,7);g.fill();g.fillStyle='#416fa4';g.fillRect(n.x-8,n.y,16,22)});
+police.forEach(p=>{carDraw({col:'#222',width:68,height:34},p.x,p.y,p.angle);g.fillStyle=Date.now()%500<250?'#e33':'#39f';g.fillRect(p.x-9,p.y-23,18,6)});
+if(active){const mm=missionData[mi],target=stage?mm[4]:mm[3];g.save();g.setLineDash([18,12]);g.strokeStyle='#ffd43b';g.lineWidth=7;g.globalAlpha=.8;g.beginPath();g.moveTo(player.x,player.y);g.lineTo(target[0],target[1]);g.stroke();g.setLineDash([]);g.fillStyle='#ffd43b';g.beginPath();g.arc(target[0],target[1],34+8*Math.sin(Date.now()/180),0,Math.PI*2);g.fill();g.fillStyle='#111';g.font='bold 24px Arial';g.textAlign='center';g.fillText('!',target[0],target[1]+9);g.textAlign='left';g.restore()}
+Object.values(remotePlayers).forEach(r=>{g.save();if(r.inCar&&Number.isInteger(r.carIndex)&&cars[r.carIndex]){const rc=cars[r.carIndex];carDraw({col:rc[3],width:64*rc[4],height:32*rc[4]},r.x,r.y,r.a||0)}else{g.fillStyle='#ff6b5c';g.beginPath();g.arc(r.x,r.y-12,10,0,7);g.fill();g.fillStyle='#fff';g.fillRect(r.x-9,r.y,18,25)}g.fillStyle='#fff';g.font='bold 12px Arial';g.textAlign='center';g.fillText(r.user||'PLAYER',r.x,r.y-34);g.restore()});
+if(player.inCar)carDraw({col:player.inCar.col,width:player.inCar.width,height:player.inCar.height},player.x,player.y,player.angle,{player:true});else{g.fillStyle='#e9c0a0';g.beginPath();g.arc(player.x,player.y-13,10,0,7);g.fill();g.fillStyle='#2876ba';g.fillRect(player.x-9,player.y,18,25)}
+g.restore();drawMini()
+}
+function drawMini(){let w=215,h=155;mg.clearRect(0,0,w,h);mg.fillStyle='#6f9655';mg.fillRect(0,0,w,h);mg.fillStyle='#4d4d4d';roads.forEach(r=>mg.fillRect(r.x/WORLD.w*w,r.y/WORLD.h*h,r.w/WORLD.w*w,r.h/WORLD.h*h));mg.fillStyle='#d5d5d5';buildings.forEach(b=>mg.fillRect(b.x/WORLD.w*w,b.y/WORLD.h*h,b.w/WORLD.w*w,b.h/WORLD.h*h));mg.fillStyle='#39aaff';mg.beginPath();mg.arc(player.x/WORLD.w*w,player.y/WORLD.h*h,5,0,7);mg.fill();Object.values(remotePlayers).forEach(r=>{mg.fillStyle='#ff5555';mg.beginPath();mg.arc(r.x/WORLD.w*w,r.y/WORLD.h*h,4,0,7);mg.fill()});if(wanted>0){mg.strokeStyle=Date.now()%500<250?'#e33':'#39f';mg.lineWidth=4;mg.strokeRect(1,1,w-2,h-2)}}
+function loop(){try{update();draw()}catch(err){console.error('CITY DRIVE game loop error:',err)}requestAnimationFrame(loop)}
+
+// CITY DRIVE MULTIPLAYER V5 — native WebSocket multiplayer.
+// Lobby controls are bound first and do not depend on the game loop.
+let mpSocket=null, mpStarted=false, mpConnected=false, mpRole='', myUser='', partyName='', partyCode='';
+const lobbyEl=document.getElementById('lobby');
+const createModal=document.getElementById('createModal');
+const joinModal=document.getElementById('joinModal');
+const createStatus=document.getElementById('createStatus');
+const joinStatus=document.getElementById('joinStatus');
+
+function openMpModal(el){el.classList.add('open');el.setAttribute('aria-hidden','false');}
+function closeMpModal(el){el.classList.remove('open');el.setAttribute('aria-hidden','true');}
+function setStatus(el,msg){el.textContent=msg;}
+function cleanCode(v){return String(v||'').toUpperCase().replace(/[^A-Z0-9_-]/g,'').slice(0,20);}
+function wsUrl(){
+  if(location.protocol==='file:') return null;
+  const proto=location.protocol==='https:'?'wss:':'ws:';
+  return proto+'//'+location.host+'/ws';
+}
+function connectAndSend(action){
+  const url=wsUrl();
+  if(!url){setStatus(action==='create'?createStatus:joinStatus,'❌ Άνοιξέ το με npm start και μετά μπες από http://localhost:3000');return;}
+  if(mpSocket && mpSocket.readyState===WebSocket.OPEN){
+    mpSocket.send(JSON.stringify({type:action,user:myUser,party:partyName,code:partyCode}));return;
+  }
+  const status=action==='create'?createStatus:joinStatus;
+  setStatus(status,'⏳ Συνδέομαι στον multiplayer server...');
+  try{mpSocket=new WebSocket(url);}catch(e){setStatus(status,'❌ '+e.message);return;}
+  mpSocket.addEventListener('open',()=>{
+    mpConnected=true;
+    mpSocket.send(JSON.stringify({type:action,user:myUser,party:partyName,code:partyCode}));
+  });
+  mpSocket.addEventListener('message',onMpMessage);
+  mpSocket.addEventListener('close',()=>{mpConnected=false;if(mpStarted)toast('🔴 Έπεσε η σύνδεση με τον server.');});
+  mpSocket.addEventListener('error',()=>{setStatus(status,'❌ Δεν βρέθηκε multiplayer server. Τρέξε npm start.');});
+}
+function onMpMessage(ev){
+  let d;try{d=JSON.parse(ev.data)}catch{return;}
+  if(d.type==='roomCreated'||d.type==='roomJoined'){
+    partyName=d.party||partyName; partyCode=d.code||partyCode;
+    player.x=d.spawn?.x ?? player.x; player.y=d.spawn?.y ?? player.y;
+    remotePlayers={};
+    mpStarted=true; started=true;
+    lobbyEl.style.display='none';
+    toast('🌐 '+(d.type==='roomCreated'?'Party created':'Joined party')+' — game started!');
+    return;
+  }
+  if(d.type==='playerList'){
+    d.players.forEach(p=>{if(p.id!==d.selfId)remotePlayers[p.id]={...p};});
+    Object.keys(remotePlayers).forEach(id=>{if(!d.players.some(p=>p.id===id))delete remotePlayers[id];});
+    return;
+  }
+  if(d.type==='playerJoined'){
+    if(d.id!==d.selfId)remotePlayers[d.id]={...d};
+    return;
+  }
+  if(d.type==='state'){
+    if(d.id!==d.selfId)remotePlayers[d.id]={...remotePlayers[d.id],...d};
+    return;
+  }
+  if(d.type==='playerLeft'){delete remotePlayers[d.id];return;}
+  if(d.type==='error'){
+    const status=mpRole==='host'?createStatus:joinStatus;
+    setStatus(status,'❌ '+d.message);
+    if(d.fatal){try{mpSocket?.close()}catch{} }
+  }
+}
+
+document.getElementById('mpCreateBtn').onclick=()=>{openMpModal(createModal);setTimeout(()=>document.getElementById('createUser').focus(),30)};
+document.getElementById('mpJoinBtn').onclick=()=>{openMpModal(joinModal);setTimeout(()=>document.getElementById('joinUser').focus(),30)};
+document.getElementById('createClose').onclick=()=>closeMpModal(createModal);
+document.getElementById('joinClose').onclick=()=>closeMpModal(joinModal);
+createModal.onclick=e=>{if(e.target===createModal)closeMpModal(createModal)};
+joinModal.onclick=e=>{if(e.target===joinModal)closeMpModal(joinModal)};
+
+document.getElementById('createConfirm').onclick=()=>{
+  myUser=(document.getElementById('createUser').value.trim()||'Player').slice(0,20);
+  partyName=(document.getElementById('createPartyName').value.trim()||'City Crew').slice(0,30);
+  partyCode=cleanCode(document.getElementById('createPartyCode').value.trim());
+  if(partyCode.length<4){setStatus(createStatus,'❌ Ο κωδικός πρέπει να έχει τουλάχιστον 4 χαρακτήρες.');return;}
+  mpRole='host';setStatus(createStatus,'⏳ Δημιουργώ το party...');connectAndSend('create');
+};
+document.getElementById('joinConfirm').onclick=()=>{
+  myUser=(document.getElementById('joinUser').value.trim()||'Player').slice(0,20);
+  partyCode=cleanCode(document.getElementById('joinCode').value.trim());
+  if(partyCode.length<4){setStatus(joinStatus,'❌ Βάλε τον κωδικό του party.');return;}
+  mpRole='guest';setStatus(joinStatus,'⏳ Μπαίνω στο party...');connectAndSend('join');
+};
+
+setInterval(()=>{
+  if(!mpStarted||!mpSocket||mpSocket.readyState!==WebSocket.OPEN)return;
+  mpSocket.send(JSON.stringify({type:'state',x:player.x,y:player.y,a:player.angle,user:myUser,inCar:!!player.inCar,carIndex:player.inCar?player.inCar.type:null}));
+},50);
+
+function sync(){moneyEl.textContent=Math.floor(money);hpEl.textContent=Math.max(0,Math.floor(hp));hungerEl.textContent=Math.max(0,Math.floor(hunger));ihp.textContent=Math.floor(hp);ihunger.textContent=Math.floor(hunger);starsEl.textContent='★'.repeat(Math.ceil(wanted));carName.textContent=player.inCar?cars[player.inCar.type][0]:'On Foot';let km=player.inCar?Math.abs(player.inCar.v)*11.5:0;speed.textContent=Math.floor(km);gear.textContent=player.inCar?(player.inCar.v>0?'D':player.inCar.v<0?'R':'N'):'N';vehicleStatus.textContent=player.inCar?((alarmOn?'🚨 ALARM ':'' )+(leftFlash?'◀ FLASH ':'')+(rightFlash?'FLASH ▶':'')+' '+tripDistance.toFixed(1)+' km') : ''}
+function toast(s){let t=document.getElementById('toast');t.textContent=s;t.style.opacity=1;clearTimeout(t.tt);t.tt=setTimeout(()=>t.style.opacity=0,1600)}
+function openAdmin(){let a=prompt('Admin code:');if(a!=='3756')return a!=null&&toast('Λάθος κωδικός');let b=prompt('Admin name:');if(b==='Giannhs')admin.style.display='block';else if(b!=null)toast('Λάθος όνομα')}
+function openMap(){map.style.display='block';let q=document.getElementById('bigmap').getContext('2d');q.fillStyle='#759d58';q.fillRect(0,0,1000,600);q.fillStyle='#555';roads.forEach(r=>q.fillRect(r.x/WORLD.w*1000,r.y/WORLD.h*600,r.w/WORLD.w*1000,r.h/WORLD.h*600));q.fillStyle='#ddd';buildings.forEach(b=>q.fillRect(b.x/WORLD.w*1000,b.y/WORLD.h*600,b.w/WORLD.w*1000,b.h/WORLD.h*600));q.fillStyle='#39aaff';q.beginPath();q.arc(player.x/WORLD.w*1000,player.y/WORLD.h*600,8,0,7);q.fill()}
+function setTime(v){timeMode=v;toast(v)}
+function buyFood(n,c,g){if(money<c)return toast('Δεν έχεις αρκετά χρήματα');money-=c;hunger=Math.min(100,hunger+g);sync();toast(n+' +'+g)}
+function buyMedkit(){if(money<200)return toast('Δεν έχεις αρκετά χρήματα');money-=200;hp=Math.min(100,hp+40);sync();toast('Medkit +40 HP')}
+function respawn(){money=0;hp=100;hunger=100;player.x=2600;player.y=1900;player.inCar=null;toast('Respawn — κρατάς τα αυτοκίνητά σου')}
+function trafficReverse(){traffic.forEach(t=>t.v*=-1)}
+function adminMoneyAmount(){let n=prompt('Πόσα χρήματα θέλεις;');if(n!==null&&Number.isFinite(+n)){money=Math.max(0,+n);sync();toast('💰 Money set')}}
+function adminSpeed(){let n=prompt('Με πόσα km/h να πηγαίνει το αμάξι;');if(n!==null&&Number.isFinite(+n)){adminSpeedOverride=Math.max(1,+n);toast('🏎️ Speed override: '+adminSpeedOverride+' km/h')}}
+function adminDistance(){let n=prompt('Πόσα km θέλεις για το trip/odometer;');if(n!==null&&Number.isFinite(+n)){tripDistance=Math.max(0,+n);toast('📏 Trip distance: '+tripDistance+' km')}}
+function resetAdminValues(){adminSpeedOverride=null;tripDistance=0;toast('♻️ Admin values reset')}
+let tripDistance=0;
+function missionRandom(){startMission(Math.floor(Math.random()*missionData.length))}
+
+// Start the game loop only after the lobby handlers are ready.
+loop();
+
+function resetWorld(){money=1500;hp=100;hunger=100;wanted=0;owned=[0];player.inCar=null;player.x=2600;player.y=1900;police=[];sync()}
+carsEl=document.getElementById('cars');carsEl.innerHTML=cars.map((a,i)=>`<button onclick="buyCar(${i})">🚗 ${a[0]}<br>$${a[1]}<br>⚡ ${a[2]} km/h</button>`).join('');
+missionList.innerHTML=missionData.map((m,i)=>`<div style="padding:10px;border-bottom:1px solid #fff2"><b>${m[0]}</b> — ${m[1]} — 💰 $${m[2]}<br><button onclick="startMission(${i})">START</button></div>`).join('');
+const moneyEl=document.getElementById('money'),hpEl=document.getElementById('hp'),hungerEl=document.getElementById('hunger'),ihp=document.getElementById('ihp'),ihunger=document.getElementById('ihunger'),starsEl=document.getElementById('stars'),carName=document.getElementById('carName'),speed=document.getElementById('speed'),gear=document.getElementById('gear'),vehicleStatus=document.getElementById('vehicleStatus');sync();updateMissionUI();
+</script></body></html>
